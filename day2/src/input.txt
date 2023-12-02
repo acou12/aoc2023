@@ -1,42 +1,4 @@
-(defn parse-description [string color-freq]
-  (let [split (.split string " ")
-        n (Integer/parseInt (get split 1))
-        color (get split 2)
-        pr (get color-freq 0)
-        pg (get color-freq 1)
-        pb (get color-freq 2)]
-    (if (= color "red")
-      [n pg pb]
-      (if (= color "green")
-        [pr n pb]
-        [pr pg n]))))
-
-(defn parse-descriptions [descriptions]
-  (reduce (fn [freq y] (parse-description y freq)) [0 0 0] descriptions))
-
-; Parses a game; returns a pair. The first element is the game id and the second 
-; is a list of triples containing (red, green, blue) counts.
-(defn parse-game [string]
-  (let
-   [split (.split string ":")
-    left (get split 0)
-    right (get split 1)
-    game-id (Integer/parseInt (get (.split left "Game ") 1))
-    draws (vec (.split right ";"))
-    split-draws (map (fn [d] (vec (.split d ","))) draws)
-    parsed-draws (map parse-descriptions split-draws)]
-    [game-id parsed-draws]))
-
-(defn valid-game [game]
-  (every? identity (map (fn [freq]
-                          (let [r (get freq 0)
-                                g (get freq 1)
-                                b (get freq 2)]
-                            (and (and (<= r 12) (<= g 13)) (<= b 14)))) (second game))))
-
-;; (parse-game "Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green")
-
-(def games (vec (map parse-game (vec (.split "Game 1: 12 blue, 15 red, 2 green; 17 red, 8 green, 5 blue; 8 red, 17 blue; 9 green, 1 blue, 4 red
+Game 1: 12 blue, 15 red, 2 green; 17 red, 8 green, 5 blue; 8 red, 17 blue; 9 green, 1 blue, 4 red
 Game 2: 6 red, 6 blue, 2 green; 1 blue, 1 red; 6 green, 1 red, 10 blue
 Game 3: 1 green, 2 blue; 7 blue, 4 green; 2 green, 1 blue; 10 blue, 4 green; 4 blue; 1 green, 7 blue, 1 red
 Game 4: 16 red, 12 blue, 10 green; 15 red, 5 green, 6 blue; 10 green, 15 red, 12 blue
@@ -135,6 +97,4 @@ Game 96: 10 red, 12 blue, 9 green; 4 green, 8 blue, 4 red; 8 blue, 3 red, 4 gree
 Game 97: 13 green, 1 blue; 9 green, 1 red, 1 blue; 6 blue, 10 green; 1 red, 6 blue, 11 green
 Game 98: 2 blue, 14 green, 2 red; 7 green, 1 blue; 1 blue, 1 red, 3 green; 2 red, 1 blue, 15 green; 1 blue, 2 red, 10 green
 Game 99: 3 green, 8 red, 7 blue; 6 red, 13 blue; 12 red, 4 green, 4 blue; 12 red, 8 green, 3 blue; 11 blue, 11 red, 4 green
-Game 100: 2 red, 13 blue, 1 green; 1 green, 12 blue; 1 red, 5 blue, 1 green; 3 blue, 3 red" "\n")))))
-
-(reduce (fn [acc game] (+ acc (if (valid-game game) (first game) 0))) 0 games)
+Game 100: 2 red, 13 blue, 1 green; 1 green, 12 blue; 1 red, 5 blue, 1 green; 3 blue, 3 red
