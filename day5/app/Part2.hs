@@ -4,27 +4,12 @@ import System.IO
 import Data.List
 import Data.List.Split
 import Data.Maybe
+import Data.Function
 import Debug.Trace
 
 data Range = Range {destRangeStart   :: Int,
                    sourceRangeStart  :: Int,
                    rangeLength       :: Int} deriving (Show)
-
-data Piecewise = Piecewise {inclLow  :: Int,
-                            exclHigh :: Int,
-                            offset   :: Int} deriving (Show)
-
-toPiecewise :: Range -> Piecewise
-toPiecewise range =
-    Piecewise {inclLow = sourceRangeStart range,
-                exclHigh = sourceRangeStart range + rangeLength range,
-                offset = destRangeStart range - sourceRangeStart range}
-
-fromPiecewise :: Piecewise -> Range
-fromPiecewise piecewise =
-    Range {destRangeStart = inclLow piecewise,
-           sourceRangeStart = inclLow piecewise + offset piecewise,
-           rangeLength = exclHigh piecewise - inclLow piecewise}
 
 parseLine :: String -> Range
 parseLine line =
@@ -55,43 +40,70 @@ parseAll input =
 rangeMatches :: Range -> Int -> Bool
 rangeMatches (Range _ sourceRangeStart rangeLength) x =
     (sourceRangeStart <= x) && (x < sourceRangeStart + rangeLength)
- 
+
+getMatchingRange :: [Range] -> Int -> Maybe Range
+getMatchingRange ranges x = find (\r -> rangeMatches r x) ranges
+
 getNext :: [Range] -> Int -> Int
 getNext ranges x =
-   let mRange = find (\r -> rangeMatches r x) ranges
-   in case mRange of
+   case getMatchingRange ranges x of
         Just range -> (destRangeStart range) + (x - (sourceRangeStart range)) 
         Nothing -> x
 
-finalSeedLocation :: [[Range]] -> Int -> Int
-finalSeedLocation sections x =
-    case sections of
-        [] -> x
-        r : rs ->
-            finalSeedLocation rs (getNext r x)
+nextMinimumLocal :: [Range] -> Int -> Maybe Int
+nextMinimumLocal ranges x =
+    let matchingRange = getMatchingRange ranges x
+    in case matchingRange of
+        Just (Range _ sourceRangeStart rangeLength) -> Just $ sourceRangeStart + rangeLength
+        Nothing ->
+            let above = filter (\r -> x < sourceRangeStart r) ranges
+            in if length above > 0 then
+                Just $ sourceRangeStart (minimumBy (compare `on` sourceRangeStart) above)
+            else
+                Nothing
 
--- criticalPoints :: [Piecewise] -> [Piecewise] -> [Piecewise]
--- composePiecewise p1 p2 =
---      map (L)
+traversalRanges :: [[Range]] -> Int -> [(Int, Maybe Int)]
+traversalRanges [] x = []
+traversalRanges (r : rs) x = (x, nextMinimumLocal r x) : (traversalRanges rs (getNext r x))
+
+finalSeedLocation :: [[Range]] -> Int -> Int
+finalSeedLocation [] x = x
+finalSeedLocation (r : rs) x = finalSeedLocation rs (getNext r x)
+
+lm :: [[Range]] -> Int -> Maybe Int
+lm sections x =
+    let arr = traversalRanges sections x >>= (\t ->
+            let (x, my) = t
+            in case my of
+                Just y -> [y - x]
+                Nothing -> []
+         )
+    in case arr of
+        [] -> Nothing
+        arr -> Just $ minimum arr
+
+lms :: [[Range]] -> Int -> Int -> [Int]
+lms sections x upToExcl =
+    if x < upToExcl then
+        case lm sections x of
+            Just offset -> x : lms sections (x + offset) upToExcl
+            Nothing -> [x]
+    else []
+
+answer :: [[Range]] -> Int -> Int -> Int
+answer sections from offset =
+    minimum $ map (finalSeedLocation sections) $ lms sections from (from + offset)
+
+groupSize :: forall a. Int -> [a] -> [[a]]
+groupSize _ [] = []
+groupSize n xs = g : groupSize n gs
+            where (g, gs) = splitAt n xs
 
 main :: IO ()
 main = do  
-    handle <- openFile "small-input.txt" ReadMode  
+    handle <- openFile "input.txt" ReadMode  
     contents <- hGetContents handle  
     let (seeds, sections) = parseAll contents
-    print $ sections
-    print $ map (map toPiecewise) sections
-
-[Piecewise {inclLow = 69, exclHigh = 70, offset = -69},
-Piecewise {inclLow = 0, exclHigh = 69, offset = 1}],
-
-[Piecewise {inclLow = 56, exclHigh = 93, offset = 4},
-Piecewise {inclLow = 93, exclHigh = 97, offset = -37}]]
-
-0..69  + 1
-69..70 -69
-
-56..93 + 4
-93..97 -37
-
-0..55 +5
+    -- print $ map (finalSeedLocation sections) [105786393, 105786394, 105786395]
+    -- print $ minimum $ map (finalSeedLocation sections) $ lms sections 1 50
+    print $ minimum $ map (\(x : y : []) -> answer sections x y) $ groupSize 2 seeds
