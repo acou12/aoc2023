@@ -1,0 +1,6 @@
+{
+    "ocaml.sandbox": {
+        "kind": "opam",
+        "switch": "C:\\Users\\ayden\\AppData\\Local\\Programs\\DiskuvOCaml\\dkml"
+    }
+}
